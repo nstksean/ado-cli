@@ -67,9 +67,10 @@ wiCmd
   .requiredOption("--title <title>", "Issue title")
   .option("--iteration <path>", "Iteration path")
   .option("--area <path>", "Area path override")
+  .option("--tags <tags>", "Semicolon-separated tags, e.g. \"P1; bug\"")
   .action(run(async function (opts) {
     out(await workitem.createIssue(getCtx(this), {
-      title: opts.title, iterationPath: opts.iteration, areaPath: opts.area,
+      title: opts.title, iterationPath: opts.iteration, areaPath: opts.area, tags: opts.tags,
     }));
   }));
 
@@ -81,11 +82,13 @@ wiCmd
   .option("--iteration <path>", "Iteration path")
   .option("--area <path>", "Area path override")
   .option("--parent <id>", "Parent work item ID")
+  .option("--tags <tags>", "Semicolon-separated tags, e.g. \"P1; bug\"")
   .action(run(async function (opts) {
     out(await workitem.createTask(getCtx(this), {
       title: opts.title, description: opts.description,
       iterationPath: opts.iteration, areaPath: opts.area,
       parentId: opts.parent ? Number(opts.parent) : undefined,
+      tags: opts.tags,
     }));
   }));
 
@@ -100,6 +103,7 @@ wiCmd
   .option("--project-id <id>", "Project GUID (for commit link)")
   .option("--repo-id <id>", "Repo GUID (for commit link)")
   .option("--commit <sha>", "Git commit SHA (for commit link)")
+  .option("--tags <tags>", "Semicolon-separated tags applied to both Issue and Task")
   .action(run(async function (opts) {
     let commitInfo;
     if (opts.projectId && opts.repoId && opts.commit) {
@@ -109,6 +113,7 @@ wiCmd
       issueTitle: opts.issueTitle, taskTitle: opts.taskTitle,
       taskDescription: opts.taskDescription,
       iterationPath: opts.iteration, areaPath: opts.area, commitInfo,
+      tags: opts.tags,
     }));
   }));
 
@@ -124,10 +129,12 @@ wiCmd
   .option("--state <state>", "Filter by state: New, Active, Closed")
   .option("--type <type>", "Filter by type: Issue, Task")
   .option("--assigned-to <name>", "Filter by assigned person")
+  .option("--tag <tag>", "Filter by tag (WIQL CONTAINS)")
   .action(run(async function (opts) {
     out(await workitem.list(getCtx(this), {
       iterationPath: opts.iteration, state: opts.state,
       type: opts.type, assignedTo: opts.assignedTo,
+      tag: opts.tag,
     }));
   }));
 
@@ -150,11 +157,13 @@ wiCmd
   .option("--assigned-to <name>", "Assign to person")
   .option("--iteration <path>", "Iteration path")
   .option("--area <path>", "Area path")
+  .option("--tags <tags>", "Tags to append (semicolon-separated; merged with existing, never clobbers)")
   .action(run(async function (id, opts) {
     out(await workitem.update(getCtx(this), {
       id: Number(id), title: opts.title, description: opts.description,
       state: opts.state, assignedTo: opts.assignedTo,
       iterationPath: opts.iteration, areaPath: opts.area,
+      tags: opts.tags,
     }));
   }));
 
