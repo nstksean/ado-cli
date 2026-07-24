@@ -47,23 +47,26 @@ ado sprint workitems [--iteration-id ID]
 
 ```bash
 # Issue (parent)
-ado wi create-issue --title "TITLE" [--iteration PATH] [--area PATH]
+ado wi create-issue --title "TITLE" [--iteration PATH] [--area PATH] [--tags "a; b"]
 
 # Task (child) — use --parent to link
-ado wi create-task --title "TITLE" [--description "HTML"] [--iteration PATH] [--parent ID]
+ado wi create-task --title "TITLE" [--description "HTML"] [--iteration PATH] [--parent ID] [--tags "a; b"]
 
 # Composite: Issue + Task + commit link in one step
 ado wi create-card \
   --issue-title "TITLE" --task-title "TITLE" \
   [--task-description "HTML"] [--iteration PATH] \
-  [--project-id GUID --repo-id GUID --commit SHA]
+  [--project-id GUID --repo-id GUID --commit SHA] \
+  [--tags "a; b"]
 ```
+
+Tags are semicolon-separated (`--tags "ready-for-agent; bug"`).
 
 ### Read
 
 ```bash
 ado wi get ID
-ado wi list [--iteration PATH] [--state STATE] [--type TYPE] [--assigned-to NAME]
+ado wi list [--iteration PATH] [--state STATE] [--type TYPE] [--assigned-to NAME] [--tag TAG]
 ado wi children ID
 ado wi query "WIQL"
 ```
@@ -71,7 +74,8 @@ ado wi query "WIQL"
 ### Update
 
 ```bash
-ado wi update ID [--title T] [--description HTML] [--state STATE] [--assigned-to NAME] [--iteration PATH]
+ado wi update ID [--title T] [--description HTML] [--state STATE] [--assigned-to NAME] [--iteration PATH] [--tags "a; b"]
+# --tags appends (merged with existing tags, never clobbers)
 ado wi close ID
 ado wi assign ID --to NAME
 ```
@@ -88,6 +92,7 @@ ado wi delete ID [--destroy]
 **IMPORTANT:**
 1. Before running `ado wi link-commit`, ensure the commit has been `git push`ed to the remote. Linking a local-only commit will result in ADO being unable to display the actual content.
 2. `--commit` must use the **full 40-character SHA**. Short SHAs produce broken links in ADO. Use `git rev-parse <short>` to resolve the full SHA.
+3. **Never put a bare `#<number>` in a commit message** (e.g. `React error #418`, `fixes #123`). ADO scans every pushed commit message for `#<digits>` / `AB#<digits>` and creates a cross-project work item link to whatever ID matches — across the entire organization, not just this repo's project. This silently attaches your commit to a stranger's work item. Use `error 418`, `error code 418`, or a full URL instead. Use `ado wi link-commit` for intentional linking.
 
 ```bash
 # Get projectId/repoId (auto-parses org from URL)
@@ -98,74 +103,30 @@ FULL_SHA=$(git rev-parse <short-sha>)
 ado wi link-commit --task-id ID --project-id GUID --repo-id GUID --commit $FULL_SHA
 ```
 
-## Sprint 卡片規則
+## Pull Requests
 
-### 卡片層級
+```bash
+# Get repo ID first
+ado repo info --remote-url "$(git remote get-url origin)"
 
-| 層級 | 用途 | 誰看 |
-|------|------|------|
-| **Issue**（parent） | 一個使用者可感知的改善或功能 | 全團隊 |
-| **Task**（child） | 一個可獨立交付、可驗收的工作成果 | 工程師 |
+# Create PR (source branch defaults to current git branch)
+ado pr create --repo-id GUID --title "TITLE" --target main [--description "TEXT"] [--draft] [--work-items 1234,5678]
 
-### Title 規則
-- **非技術語言**（團隊多非工程背景）
-- Issue 前綴：「改善：」「新增：」「修復：」「事件記錄：」「評估：」
-- Task 描述具體交付成果
+# List active PRs
+ado pr list --repo-id GUID [--status active|abandoned|completed|all] [--top 20]
 
-### Task 大小原則
-- **一個 Task = 一個可交付的成果**，不按問題或實驗拆
-- 過程中的 bug、嘗試與排除 → 寫在該 Task 的**備註或 Comment**，不另開 Task
-- 卡片數量不代表工時，工時用 Comment 或 Completed Work 欄位體現
-- 不在這個 Sprint 做 → 移到 Backlog 或 Title 加 `[Pending]`
+# Get PR by ID
+ado pr get 1388 --repo-id GUID
 
-### Description HTML 模板
+# Update PR title or description
+ado pr update 1388 --repo-id GUID --title "NEW TITLE" --description "NEW DESC"
 
-**Issue：**
-```html
-<h3>背景</h3>
-<p>為什麼要做這件事</p>
-
-<h3>目標</h3>
-<p>做完後的預期效果（使用者角度）</p>
-
-<h3>影響範圍</h3>
-<p>影響哪些服務/角色/客戶</p>
+# Abandon PR
+ado pr abandon 1388 --repo-id GUID
 ```
 
-**Task：**
-```html
-<h3>做什麼</h3>
-<p>具體工作內容</p>
-
-<h3>驗收標準</h3>
-<ul>
-<li>可量化的完成條件</li>
-</ul>
-
-<h3>備註</h3>
-<p>技術細節、限制、相依項目（選填）</p>
-```
-
-**事件記錄（Issue，通常不需要 Task，除非有後續預防措施）：**
-```html
-<h3>事件</h3>
-<p>什麼時候、發生了什麼事、影響範圍</p>
-
-<h3>原因</h3>
-<p>root cause</p>
-
-<h3>處理方式</h3>
-<p>怎麼修的、何時恢復</p>
-
-<h3>後續預防</h3>
-<p>避免再次發生的措施（選填）</p>
-```
-
-### Comment 注意事項
-- ADO Comment **不支援 Markdown**，必須用 HTML
-- **完整歷程** → Issue Comment
-- **工作紀錄**（做了什麼、踩了什麼坑） → Task Comment
-- **策略決定** → Issue Description
+> ⚠️ PR create requires PAT with **Code (Read & write)** scope.
+> If you get 401: go to https://dev.azure.com/<org>/_usersSettings/tokens → Edit token → Code → check **Read & write** → Save.
 
 ## 「開卡片並 commit」Workflow
 
@@ -174,15 +135,20 @@ When the user says **「開卡片並 commit」**, follow this sequence:
 1. **Commit & push** the code changes
 2. **Get current sprint**: `ado sprint current` → extract `path`
 3. **Get repo info**: `ado repo info --remote-url "$(git remote get-url origin)"` → extract `projectId`, `repoId`
-4. **Create card** (Issue + Task + commit link), using the description templates above:
+4. **Create card** (Issue + Task + commit link):
    ```bash
    ado wi create-card \
      --issue-title "改善：NON_TECHNICAL_TITLE" \
      --task-title "NON_TECHNICAL_TITLE" \
-     --task-description "HTML_USING_TEMPLATE" \
+     --task-description "<p>TECHNICAL_DETAILS_HTML</p>" \
      --iteration "SPRINT_PATH" \
      --project-id GUID --repo-id GUID --commit SHA
    ```
+
+**Title rules:**
+- Use **non-technical language** (team has non-engineering members)
+- Prefix with 「改善：」for improvements or 「新增：」for new features
+- Put technical details only in `--task-description` (HTML format)
 
 **Variant — 「掛到 #XXXX」**: Skip Issue creation, create Task only:
 ```bash
