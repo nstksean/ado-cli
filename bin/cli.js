@@ -181,8 +181,14 @@ wiCmd
 wiCmd
   .command("comment <id>")
   .description("Add a comment to a work item")
-  .requiredOption("--text <text>", "Comment text")
-  .action(run(async function (id, opts) { out(await workitem.addComment(getCtx(this), { id: Number(id), text: opts.text })); }));
+  .option("--text <text>", "Comment text (markdown)")
+  .option("--file <path>", "Read comment text from a file (avoids shell quoting issues)")
+  .option("--format <format>", "markdown | html", "markdown")
+  .action(run(async function (id, opts) {
+    const text = opts.file ? require("fs").readFileSync(opts.file, "utf8") : opts.text;
+    if (!text) throw new Error("--text or --file is required");
+    out(await workitem.addComment(getCtx(this), { id: Number(id), text, format: opts.format }));
+  }));
 
 wiCmd
   .command("delete <id>")
