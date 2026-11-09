@@ -3,6 +3,7 @@ const { program } = require("commander");
 const { createContext } = require("../src/api");
 const sprint = require("../src/sprint");
 const workitem = require("../src/workitem");
+const comments = require("../src/comments");
 const repo = require("../src/repo");
 const org = require("../src/org");
 const pipeline = require("../src/pipeline");
@@ -188,6 +189,19 @@ wiCmd
     const text = opts.file ? require("fs").readFileSync(opts.file, "utf8") : opts.text;
     if (!text) throw new Error("--text or --file is required");
     out(await workitem.addComment(getCtx(this), { id: Number(id), text, format: opts.format }));
+  }));
+
+wiCmd
+  .command("comments <id>")
+  .description("List comments on a work item, oldest first (read-only)")
+  .option("--since <iso>", "Only comments created after this ISO time")
+  .option("--others-after-me", "Only others' comments after my latest comment")
+  .action(run(async function (id, opts) {
+    const ctx = getCtx(this);
+    const meId = opts.othersAfterMe ? (await org.whoami(ctx)).id : undefined;
+    out(await comments.listComments(ctx, {
+      id: Number(id), since: opts.since, othersAfterMe: !!opts.othersAfterMe, meId,
+    }));
   }));
 
 wiCmd
