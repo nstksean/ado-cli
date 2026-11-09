@@ -67,8 +67,11 @@ Tags are semicolon-separated (`--tags "ready-for-agent; bug"`).
 ```bash
 ado wi get ID
 ado wi list [--iteration PATH] [--state STATE] [--type TYPE] [--assigned-to NAME] [--tag TAG]
+# WIQL macros are passed unquoted: --assigned-to @Me --iteration @CurrentIteration
 ado wi children ID
 ado wi query "WIQL"
+ado wi comments ID [--since ISO] [--others-after-me]   # read-only, oldest first
+# → [{id, by, mail, createdDate, format, text}]; --others-after-me = others' comments after my latest
 ```
 
 ### Update
@@ -83,9 +86,16 @@ ado wi assign ID --to NAME
 ### Comment & Delete
 
 ```bash
-ado wi comment ID --text "TEXT"
+ado wi comment ID --text "TEXT"          # default --format markdown (or html)
+ado wi comment ID --file path.md         # long text: write a file first, avoids shell quoting
+ado wi comment ID --file body.html --image a.png [--image b.png] [--width 720]
+ado wi comment ID --file body.html --image a.png --dry-run   # print final body + files, no network
 ado wi delete ID [--destroy]
 ```
+
+- `--image` (repeatable) uploads each file as an attachment and replaces `{{img:<basename>}}` in the body with `<img src="<url>" width="<w>">`. With `--image`, format defaults to `html`. Every placeholder needs a matching `--image` and vice versa, checked before any upload.
+- Mentions must be `@<guid>` (markdown) or `data-vss-mention="version:2.0,<guid>"` (html). A bare `@guid` without angle brackets is refused, also in `--dry-run`.
+- Run `--dry-run` first, then the same command without it.
 
 ## Repo & Commit Linking
 
