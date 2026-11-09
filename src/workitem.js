@@ -2,7 +2,7 @@ const { request, patchWorkItem } = require("./api");
 const fs = require("fs");
 const { wiqlString, wiqlValue } = require("./wiql");
 const {
-  planImages, replaceImagePlaceholders, attachmentUrlWithName,
+  assertNoBareMentions, planImages, replaceImagePlaceholders, attachmentUrlWithName,
 } = require("./comment-body");
 
 function enc(ctx) { return encodeURIComponent(ctx.project); }
@@ -169,6 +169,7 @@ async function assign(ctx, { id, assignedTo }) {
 
 // format 預設 markdown：ADO 留言預設是 HTML，直接貼 markdown 會把 ** 與 - 原樣顯示出來。
 async function addComment(ctx, { id, text, format = "markdown" }) {
+  assertNoBareMentions(text);
   const url = `${ctx.base}/${enc(ctx)}/_apis/wit/workItems/${id}/comments?format=${format}&api-version=7.1-preview.4`;
   const data = await request(ctx, url, { method: "POST", body: { text } });
   return { id: data.id, workItemId: data.workItemId, format: data.format, text: data.text };
@@ -181,11 +182,12 @@ async function uploadAttachment(ctx, { name, content }) {
 }
 
 /**
- * Validate everything first (placeholders, files), then upload each
+ * Validate everything first (mentions, placeholders, files), then upload each
  * image, swap {{img:<name>}} for <img>, and post. dryRun skips all network
  * calls and returns the body with stand-in URLs.
  */
 async function addCommentWithImages(ctx, { id, text, format = "html", images = [], width = 720, dryRun = false }) {
+  assertNoBareMentions(text);
   const plan = planImages(text, images);
   const files = plan.map((img) => ({ ...img, content: fs.readFileSync(img.path) }));
 

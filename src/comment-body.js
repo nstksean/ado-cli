@@ -2,7 +2,29 @@
 
 const path = require("path");
 
+const GUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const PLACEHOLDER_RE = /\{\{img:([^}]+)\}\}/g;
+
+/**
+ * Find "@<guid>" mentions written without angle brackets (e.g. "@5e0d...").
+ * ADO renders those as plain text and notifies nobody. Valid forms are
+ * markdown "@<guid>" and HTML data-vss-mention="version:2.0,<guid>".
+ */
+function findBareMentions(text) {
+  const stripped = String(text).replace(/data-vss-mention\s*=\s*("[^"]*"|'[^']*')/gi, "");
+  const re = new RegExp(`@(${GUID})(?![0-9a-f])`, "gi");
+  return [...stripped.matchAll(re)].map((m) => m[1]);
+}
+
+function assertNoBareMentions(text) {
+  const bare = findBareMentions(text);
+  if (bare.length > 0) {
+    throw new Error(
+      `Refusing to post: bare mention(s) ${bare.map((g) => "@" + g).join(", ")}. ` +
+      "Use @<guid> (markdown) or data-vss-mention (html) so ADO notifies the person.",
+    );
+  }
+}
 
 function placeholderNames(text) {
   return [...String(text).matchAll(PLACEHOLDER_RE)].map((m) => m[1]);
@@ -50,6 +72,6 @@ function parseWidth(value) {
 }
 
 module.exports = {
-  placeholderNames, planImages,
+  findBareMentions, assertNoBareMentions, placeholderNames, planImages,
   replaceImagePlaceholders, attachmentUrlWithName, parseWidth,
 };
