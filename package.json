@@ -7,7 +7,7 @@
     "ado": "./bin/cli.js"
   },
   "scripts": {
-    "test": "echo \"No tests yet\" && exit 0"
+    "test": "node --test \"test/**/*.test.js\""
   },
   "keywords": ["azure-devops", "cli", "sprint", "work-items", "devops"],
   "author": "Benson",
