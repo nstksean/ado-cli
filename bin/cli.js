@@ -4,6 +4,7 @@ const { createContext } = require("../src/api");
 const sprint = require("../src/sprint");
 const workitem = require("../src/workitem");
 const comments = require("../src/comments");
+const { parseWidth } = require("../src/comment-body");
 const repo = require("../src/repo");
 const org = require("../src/org");
 const pipeline = require("../src/pipeline");
@@ -184,11 +185,24 @@ wiCmd
   .description("Add a comment to a work item")
   .option("--text <text>", "Comment text (markdown)")
   .option("--file <path>", "Read comment text from a file (avoids shell quoting issues)")
-  .option("--format <format>", "markdown | html", "markdown")
+  .option("--format <format>", "markdown | html (default: markdown, or html with --image)")
+  .option("--image <path>", "Upload image and replace {{img:<basename>}} in the text (repeatable)", (v, acc) => [...acc, v], [])
+  .option("--width <px>", "Width of inserted <img> tags", "720")
+  .option("--dry-run", "Print the final body and files without any network call")
   .action(run(async function (id, opts) {
     const text = opts.file ? require("fs").readFileSync(opts.file, "utf8") : opts.text;
     if (!text) throw new Error("--text or --file is required");
-    out(await workitem.addComment(getCtx(this), { id: Number(id), text, format: opts.format }));
+    const images = opts.image;
+    const format = opts.format || (images.length ? "html" : "markdown");
+    if (!images.length && !opts.dryRun) {
+      out(await workitem.addComment(getCtx(this), { id: Number(id), text, format }));
+      return;
+    }
+    const width = parseWidth(opts.width);
+    const ctx = opts.dryRun ? null : getCtx(this);
+    out(await workitem.addCommentWithImages(ctx, {
+      id: Number(id), text, format, images, width, dryRun: !!opts.dryRun,
+    }));
   }));
 
 wiCmd

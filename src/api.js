@@ -42,14 +42,16 @@ function createContext({ org, project, area, pat, requireOrg = true } = {}) {
   };
 }
 
-async function request(ctx, url, { method = "GET", body } = {}) {
+// body: plain object → JSON; Buffer → sent raw (default application/octet-stream).
+async function request(ctx, url, { method = "GET", body, contentType } = {}) {
   const headers = { Authorization: ctx.auth };
-  if (body) headers["Content-Type"] = "application/json";
+  const raw = Buffer.isBuffer(body);
+  if (body) headers["Content-Type"] = contentType || (raw ? "application/octet-stream" : "application/json");
 
   const res = await fetch(url, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? (raw ? body : JSON.stringify(body)) : undefined,
   });
 
   const text = await res.text();

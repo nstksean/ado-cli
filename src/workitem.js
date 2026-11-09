@@ -1,5 +1,9 @@
 const { request, patchWorkItem } = require("./api");
+const fs = require("fs");
 const { wiqlString, wiqlValue } = require("./wiql");
+const {
+  planImages, replaceImagePlaceholders, attachmentUrlWithName,
+} = require("./comment-body");
 
 function enc(ctx) { return encodeURIComponent(ctx.project); }
 
@@ -170,6 +174,36 @@ async function addComment(ctx, { id, text, format = "markdown" }) {
   return { id: data.id, workItemId: data.workItemId, format: data.format, text: data.text };
 }
 
+async function uploadAttachment(ctx, { name, content }) {
+  const url = `${ctx.base}/${enc(ctx)}/_apis/wit/attachments?fileName=${encodeURIComponent(name)}&api-version=7.1`;
+  const data = await request(ctx, url, { method: "POST", body: content, contentType: "application/octet-stream" });
+  return { id: data.id, url: attachmentUrlWithName(data.url, name) };
+}
+
+/**
+ * Validate everything first (placeholders, files), then upload each
+ * image, swap {{img:<name>}} for <img>, and post. dryRun skips all network
+ * calls and returns the body with stand-in URLs.
+ */
+async function addCommentWithImages(ctx, { id, text, format = "html", images = [], width = 720, dryRun = false }) {
+  const plan = planImages(text, images);
+  const files = plan.map((img) => ({ ...img, content: fs.readFileSync(img.path) }));
+
+  if (dryRun) {
+    const urls = Object.fromEntries(files.map((f) => [f.name, `dry-run://attachment/${encodeURIComponent(f.name)}`]));
+    return {
+      dryRun: true, workItemId: id, format,
+      files: files.map((f) => ({ path: f.path, name: f.name, bytes: f.content.length })),
+      body: replaceImagePlaceholders(text, urls, width),
+    };
+  }
+
+  const urls = {};
+  for (const f of files) urls[f.name] = (await uploadAttachment(ctx, f)).url;
+  const body = replaceImagePlaceholders(text, urls, width);
+  return { ...(await addComment(ctx, { id, text: body, format })), attachments: urls };
+}
+
 // ─── Delete ──────────────────────────────────────────────
 
 async function remove(ctx, { id, destroy }) {
@@ -234,5 +268,6 @@ async function createCard(ctx, { issueTitle, taskTitle, taskDescription, iterati
 
 module.exports = {
   createIssue, createTask, get, list, queryWiql, children,
-  update, close, assign, addComment, remove, linkCommit, createCard,
+  update, close, assign, addComment, addCommentWithImages, uploadAttachment,
+  remove, linkCommit, createCard,
 };
