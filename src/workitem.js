@@ -1,4 +1,5 @@
 const { request, patchWorkItem } = require("./api");
+const { wiqlString, wiqlValue } = require("./wiql");
 
 function enc(ctx) { return encodeURIComponent(ctx.project); }
 
@@ -65,12 +66,12 @@ async function get(ctx, { id }) {
 }
 
 async function list(ctx, { iterationPath, state, type, assignedTo, tag }) {
-  const conditions = [`[System.TeamProject] = '${ctx.project}'`];
-  if (iterationPath) conditions.push(`[System.IterationPath] = '${iterationPath}'`);
-  if (state) conditions.push(`[System.State] = '${state}'`);
-  if (type) conditions.push(`[System.WorkItemType] = '${type}'`);
-  if (assignedTo) conditions.push(`[System.AssignedTo] = '${assignedTo}'`);
-  if (tag) conditions.push(`[System.Tags] CONTAINS '${tag.replace(/'/g, "''")}'`);
+  const conditions = [`[System.TeamProject] = ${wiqlString(ctx.project)}`];
+  if (iterationPath) conditions.push(`[System.IterationPath] = ${wiqlValue(iterationPath)}`);
+  if (state) conditions.push(`[System.State] = ${wiqlString(state)}`);
+  if (type) conditions.push(`[System.WorkItemType] = ${wiqlString(type)}`);
+  if (assignedTo) conditions.push(`[System.AssignedTo] = ${wiqlValue(assignedTo)}`);
+  if (tag) conditions.push(`[System.Tags] CONTAINS ${wiqlString(tag)}`);
 
   const wiql = `SELECT [System.Id] FROM WorkItems WHERE ${conditions.join(" AND ")} ORDER BY [System.Id] DESC`;
   return await queryWiql(ctx, wiql);
