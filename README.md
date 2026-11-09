@@ -169,6 +169,9 @@ adowi list --iteration "Project\Sprint 2026-05"
 adowi list --state Active --type Task
 adowi list --assigned-to "John Doe"
 
+# WIQL macros are passed through unquoted
+ado wi list --assigned-to @Me --iteration @CurrentIteration
+
 # List child items of a parent
 adowi children 1234
 
@@ -192,8 +195,23 @@ adowi assign 1234 --to "John Doe"
 ### Work Items — Comment & Delete
 
 ```bash
-# Add a comment
+# Add a comment (markdown by default; --format html to send HTML)
 adowi comment 1234 --text "Deployed to staging"
+
+# Long comments: write a file first to avoid shell quoting
+ado wi comment 1234 --file comment.md
+
+# Attach images: each --image is uploaded and {{img:<basename>}} in the text
+# becomes <img src="..." width="720">. --image defaults the format to html.
+ado wi comment 1234 --file comment.html --image shot1.png --image shot2.png [--width 720]
+
+# A bare @guid mention (no angle brackets) is refused; use @<guid> or data-vss-mention
+
+# Preview the final body and files without any network call
+ado wi comment 1234 --file comment.html --image shot1.png --dry-run
+
+# List comments oldest first (read-only)
+ado wi comments 1234 [--since 2026-11-01T00:00:00Z] [--others-after-me]
 
 # Delete (moves to recycle bin)
 adowi delete 1234
@@ -259,7 +277,8 @@ adowi create-card \
 | `ado wi update <id>` | Update work item fields |
 | `ado wi close <id>` | Close a work item |
 | `ado wi assign <id>` | Assign a work item |
-| `ado wi comment <id>` | Add comment |
+| `ado wi comment <id>` | Add comment (markdown default, `--image`, `--dry-run`) |
+| `ado wi comments <id>` | List comments (read-only) |
 | `ado wi delete <id>` | Delete work item |
 | `ado wi link-commit` | Link commit to work item |
 | `ado repo info` | Get repo project/repo GUIDs |
@@ -291,6 +310,13 @@ No need to edit `CLAUDE.md` — the skills handle everything.
 
 ## Changelog
 
+### 2026-11-09
+
+- `ado wi comments <id>`: list comments (read-only, follows `continuationToken`, `--since`, `--others-after-me`)
+- `ado wi comment`: `--image` (repeatable), `--width`, `--dry-run`; bare `@guid` mentions are refused
+- `ado wi list`: WIQL macros such as `@Me` and `@CurrentIteration` are no longer quoted
+- `npm test` runs `node:test` unit tests
+
 ### 2026-05-13
 
 - **Skill: Added `/ado-pr` for Azure DevOps Pull Request creation**
@@ -305,7 +331,7 @@ No need to edit `CLAUDE.md` — the skills handle everything.
   - Issue/Task hierarchy definition and title prefix conventions
   - Task sizing principle: one Task = one deliverable outcome
   - HTML description templates for Issue, Task, and Incident Record
-  - Comment guidelines (ADO does not support Markdown — use HTML)
+  - Comment guidelines (at the time: HTML only; `ado wi comment` now sends markdown by default, `--format html` for HTML)
 
 ## License
 

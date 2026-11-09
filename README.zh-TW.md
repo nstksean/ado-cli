@@ -168,6 +168,9 @@ adowi list --iteration "Project\Sprint 2026-05"
 adowi list --state Active --type Task
 adowi list --assigned-to "王小明"
 
+# WIQL macro 不加引號直接帶入
+ado wi list --assigned-to @Me --iteration @CurrentIteration
+
 # 列出父項目的所有子項
 adowi children 1234
 
@@ -191,8 +194,23 @@ adowi assign 1234 --to "王小明"
 ### Work Items — 留言與刪除
 
 ```bash
-# 新增留言
+# 新增留言（預設 markdown；要送 HTML 用 --format html）
 adowi comment 1234 --text "已部署到 staging"
+
+# 長文先寫檔再送，避開 shell 引號問題
+ado wi comment 1234 --file comment.md
+
+# 附圖：每個 --image 會先上傳，內文的 {{img:<檔名>}} 換成 <img src="..." width="720">
+# 帶 --image 時格式預設 html
+ado wi comment 1234 --file comment.html --image shot1.png --image shot2.png [--width 720]
+
+# 沒加角括號的 @guid 會被拒送；請用 @<guid> 或 data-vss-mention
+
+# 只印出最終內文與檔案，不打任何網路請求
+ado wi comment 1234 --file comment.html --image shot1.png --dry-run
+
+# 列出留言，舊到新（唯讀）
+ado wi comments 1234 [--since 2026-11-01T00:00:00Z] [--others-after-me]
 
 # 刪除（移到資源回收筒）
 adowi delete 1234
@@ -258,7 +276,8 @@ adowi create-card \
 | `ado wi update <id>` | 更新 Work Item |
 | `ado wi close <id>` | 關閉 Work Item |
 | `ado wi assign <id>` | 指派 Work Item |
-| `ado wi comment <id>` | 新增留言 |
+| `ado wi comment <id>` | 新增留言（預設 markdown，支援 `--image`、`--dry-run`） |
+| `ado wi comments <id>` | 列出留言（唯讀） |
 | `ado wi delete <id>` | 刪除 Work Item |
 | `ado wi link-commit` | 關聯 Commit |
 | `ado repo info` | 取得 repo 的 project/repo GUID |
@@ -290,6 +309,13 @@ adowi create-card \
 
 ## 更新紀錄
 
+### 2026-11-09
+
+- `ado wi comments <id>`：列出留言（唯讀，跟著 `continuationToken` 翻頁，支援 `--since`、`--others-after-me`）
+- `ado wi comment`：新增 `--image`（可重複）、`--width`、`--dry-run`；沒加角括號的 `@guid` 會被拒送
+- `ado wi list`：`@Me`、`@CurrentIteration` 等 WIQL macro 不再被加引號
+- `npm test` 改跑 `node:test` 單元測試
+
 ### 2026-05-13
 
 - **Skill：新增 `/ado-pr`，支援 Azure DevOps Pull Request 建立**
@@ -304,7 +330,7 @@ adowi create-card \
   - Issue/Task 層級定義與 Title 前綴規則（改善：/新增：/修復：/事件記錄：/評估：）
   - Task 大小原則：一個 Task = 一個可交付成果，不按問題拆
   - Issue / Task / 事件記錄的 HTML Description 模板
-  - Comment 注意事項（ADO 不支援 Markdown，必須用 HTML）
+  - Comment 注意事項（當時只能用 HTML；現在 `ado wi comment` 預設送 markdown，要 HTML 帶 `--format html`）
 
 ## 授權
 
